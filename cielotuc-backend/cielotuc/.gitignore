@@ -1,0 +1,27 @@
+# Secrets — nunca commitear
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Modelos y artefactos de ML
+models/
+mlruns/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# SO
+Thumbs.db
+.DS_Store
