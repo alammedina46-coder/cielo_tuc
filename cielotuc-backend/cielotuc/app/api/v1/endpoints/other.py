@@ -307,6 +307,6 @@ async def trigger_retrain(
 ):
     """Manually trigger model retraining (government dashboard). Admin only."""
     import uuid
-    from app.services.tasks import retrain_model
+    from app.services.tasks import scheduler, retrain_model
     scheduler.add_job(retrain_model, id=f"retrain_{uuid.uuid4().hex[:8]}")
     return {"task_id": uuid.uuid4().hex[:8], "status": "queued"}
