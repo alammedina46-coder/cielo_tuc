@@ -105,6 +105,24 @@ def create_app() -> FastAPI:
             "version": settings.app_version,
         }
 
+    # ── Debug: DB check (remove after fixing) ────────────────
+    @app.get("/debug/db", tags=["Debug"])
+    async def debug_db():
+        from sqlalchemy import text
+        from app.db.session import AsyncSessionLocal
+        try:
+            async with AsyncSessionLocal() as db:
+                result = await db.execute(text("SELECT COUNT(*) FROM zones"))
+                count = result.scalar()
+                return {"zones_count": count, "db": "ok"}
+        except Exception as e:
+            return {"db": "error", "detail": str(e)}
+
+    # ── Debug: CORS check ────────────────────────────────────
+    @app.get("/debug/cors", tags=["Debug"])
+    async def debug_cors():
+        return {"cors_origins": settings.cors_origins}
+
     return app
 
 
