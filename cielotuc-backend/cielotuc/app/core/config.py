@@ -61,7 +61,10 @@ class Settings(BaseSettings):
     # ── CORS ───────────────────────────────────────────────────
     # Comma-separated list. NoDecode keeps the raw env string so the
     # validator below can split it (avoids pydantic-settings JSON parse).
-    cors_origins: Annotated[List[str], NoDecode] = ["http://localhost:5173"]
+    cors_origins: Annotated[List[str], NoDecode] = [
+        "http://localhost:5173",
+        "https://cielo-tuc.vercel.app",
+    ]
 
     @field_validator("cors_origins", mode="before")
     @classmethod
