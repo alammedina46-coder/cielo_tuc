@@ -21,7 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.core.config import settings
-from app.ml.models.cnn_lstm import CnnLstmWeatherModel
+from app.ml.models.cnn_lstm import CnnLstmWeatherModel, FastWeatherModel
 from app.ml.pipeline.data_pipeline import WeatherDataPipeline, FEATURE_COLS
 from app.models.weather import (
     AIPrediction, ModelVersion, SensorReading, WeatherStation, Zone
@@ -64,9 +64,12 @@ class PredictionService:
         self._flood_service = FloodAlertService()
         self._device = "cuda" if torch.cuda.is_available() else "cpu"
         self._active_version: Optional[str] = None
+        self._feat_cols: Optional[list[str]] = None
 
     async def load_model(self, db: AsyncSession) -> None:
-        """Load the currently active model version from DB."""
+        """Load the currently active model version. Tries local checkpoint first, then MLflow."""
+        from pathlib import Path
+
         result = await db.execute(
             select(ModelVersion).where(ModelVersion.is_active == True)
         )
@@ -76,20 +79,59 @@ class PredictionService:
             return
 
         self._active_version = mv.version
-        self._model = CnnLstmWeatherModel(
-            n_features=34,
-            n_timesteps=settings.model_lookback_hours,
-            horizons=settings.model_forecast_horizons,
-        ).to(self._device)
+        version_str = mv.version
 
+        # Try local checkpoint first (for v2.0+ models)
+        models_dir = Path("models")
+        ckpt_path = models_dir / f"cielotuc_v{version_str}.pt"
+        if ckpt_path.exists():
+            try:
+                ckpt = torch.load(ckpt_path, map_location=self._device, weights_only=False)
+                n_features = ckpt.get("n_features", 34)
+                n_timesteps = ckpt.get("n_timesteps", settings.model_lookback_hours)
+                horizons = ckpt.get("horizons", settings.model_forecast_horizons)
+
+                # Choose model class based on saved metadata
+                if n_features > 34 or n_timesteps <= 24:
+                    self._model = FastWeatherModel(
+                        n_features=n_features, n_timesteps=n_timesteps, horizons=horizons,
+                    ).to(self._device)
+                else:
+                    self._model = CnnLstmWeatherModel(
+                        n_features=n_features, n_timesteps=n_timesteps, horizons=horizons,
+                    ).to(self._device)
+
+                self._model.load_state_dict(ckpt["model_state_dict"])
+                self._model.eval()
+
+                # Save feat_cols for exact column ordering at inference
+                self._feat_cols = ckpt.get("feat_cols")
+
+                # Update pipeline lookback to match model
+                self._pipeline = WeatherDataPipeline(lookback_hours=n_timesteps)
+                self._pipeline.load_scaler()
+
+                logger.info(f"Loaded model v{version_str} from {ckpt_path.name} "
+                           f"({n_features} features, {n_timesteps}h lookback, "
+                           f"{self._model.n_parameters:,} params)")
+                return
+            except Exception as e:
+                logger.error(f"Local checkpoint load failed: {e}")
+
+        # Fallback: try MLflow
         try:
             import mlflow.pytorch
             mlflow.set_tracking_uri(settings.mlflow_tracking_uri)
+            self._model = CnnLstmWeatherModel(
+                n_features=34,
+                n_timesteps=settings.model_lookback_hours,
+                horizons=settings.model_forecast_horizons,
+            ).to(self._device)
             self._model = mlflow.pytorch.load_model(
                 f"runs:/{mv.mlflow_run_id}/model",
                 map_location=self._device,
             )
-            logger.info(f"Loaded model v{mv.version} from MLflow")
+            logger.info(f"Loaded model v{version_str} from MLflow")
         except Exception as e:
             logger.error(f"MLflow load failed: {e}. Model not available.")
             self._model = None
@@ -147,7 +189,15 @@ class PredictionService:
         )
 
         # ── 3. Run model inference ─────────────────────────────
-        x = self._pipeline.build_inference_window(df)
+        # Add enhanced features if model uses v2.0+ (48 features)
+        n_expected = self._model.cnn[0].in_channels if hasattr(self._model, 'cnn') else 34
+        use_scale = n_expected <= 34  # v1.0 was trained scaled, v2.0 on raw data
+        if n_expected > 34:
+            df = self._pipeline.add_enhanced_features(df)
+
+        x = self._pipeline.build_inference_window(
+            df, scale=use_scale, columns=self._feat_cols,
+        )
         x = x.to(self._device)
 
         self._model.eval()

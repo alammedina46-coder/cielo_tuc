@@ -484,16 +484,67 @@ class WeatherDataPipeline:
         return X, y
 
     def build_inference_window(
-        self, df: pd.DataFrame
+        self, df: pd.DataFrame, *, scale: bool = True, columns: list[str] | None = None,
     ) -> torch.Tensor:
         """
         Build a single input window for live inference.
         Uses the last `lookback` rows of the preprocessed DataFrame.
         Returns shape: [1, lookback, n_features]
+
+        Args:
+            scale: If True, apply fitted MinMaxScaler (v1.0 models).
+                   If False, return raw numeric data (v2.0+ models trained
+                   on unscaled data).
+            columns: Exact column order to use (from checkpoint feat_cols).
+                     If None and scale=False, auto-detects numeric columns.
         """
         assert len(df) >= self.lookback, (
             f"Need at least {self.lookback} rows for inference, got {len(df)}"
         )
         df_tail = df.tail(self.lookback)
-        scaled = self.transform(df_tail)
+        if scale:
+            scaled = self.transform(df_tail)
+        else:
+            if columns is not None:
+                available = [c for c in columns if c in df_tail.columns]
+                scaled = df_tail[available].values.astype(np.float32)
+            else:
+                skip = {"timestamp", "year", "month", "day",
+                        "_label_zonda", "_label_storm", "_label_hail"}
+                numeric_cols = [
+                    c for c in df_tail.columns
+                    if c not in skip
+                    and df_tail[c].dtype.kind in ("f", "i")
+                ]
+                scaled = df_tail[numeric_cols].values.astype(np.float32)
         return torch.tensor(scaled[np.newaxis, :, :], dtype=torch.float32)
+
+    def add_enhanced_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Add lag features and weather interaction terms (v2.0 feature engineering)."""
+        if "temperature_c" in df.columns:
+            df["temp_lag_1h"] = df["temperature_c"].shift(1)
+            df["temp_lag_3h"] = df["temperature_c"].shift(3)
+            df["temp_tendency"] = df["temperature_c"].diff(3)
+            df["temp_range_24h"] = (
+                df["temperature_c"].rolling(24, min_periods=1).max()
+                - df["temperature_c"].rolling(24, min_periods=1).min()
+            )
+        if "humidity_pct" in df.columns:
+            df["humid_lag_1h"] = df["humidity_pct"].shift(1)
+            df["humid_tendency"] = df["humidity_pct"].diff(3)
+        if "pressure_hpa" in df.columns:
+            df["pressure_tendency_3h"] = df["pressure_hpa"].diff(3)
+            df["pressure_tendency_24h"] = df["pressure_hpa"].diff(24)
+        if "wind_speed_kmh" in df.columns:
+            df["wind_lag_1h"] = df["wind_speed_kmh"].shift(1)
+        if "precip_mm" in df.columns:
+            df["precip_lag_1h"] = df["precip_mm"].shift(1)
+            df["precip_tendency"] = df["precip_mm"].diff(3)
+        if "temperature_c" in df.columns and "humidity_pct" in df.columns:
+            df["temp_humid_index"] = df["temperature_c"] * df["humidity_pct"] / 100
+        if "cape_j_kg" in df.columns and "humidity_pct" in df.columns:
+            df["instability_index"] = df["cape_j_kg"] * df["humidity_pct"] / 10000
+        if "wind_speed_kmh" in df.columns and "pressure_hpa" in df.columns:
+            df["wind_pressure_ratio"] = df["wind_speed_kmh"] / df["pressure_hpa"].clip(lower=900)
+        df = df.ffill(limit=6).bfill(limit=3).fillna(0)
+        return df

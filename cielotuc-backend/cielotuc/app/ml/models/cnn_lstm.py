@@ -236,3 +236,73 @@ class WeatherLoss(nn.Module):
                 )
 
         return loss
+
+
+# ── v2.0: Lightweight fast model ───────────────────────────────
+class FastWeatherModel(nn.Module):
+    """
+    CIELO·TUC v2.0 — optimized for speed + accuracy.
+    2-layer LSTM, 1 CNN layer, 96 hidden, supports dynamic n_features/lookback.
+    Same output format as CnnLstmWeatherModel (7 targets per horizon).
+    """
+
+    def __init__(
+        self,
+        n_features: int = 48,
+        n_timesteps: int = 24,
+        horizons: list[int] | None = None,
+    ):
+        super().__init__()
+        self.horizons = horizons or [3, 6, 12, 24, 48, 168]
+        self.n_timesteps = n_timesteps
+        self.hidden_size = 96
+
+        self.cnn = nn.Sequential(
+            nn.Conv1d(n_features, 48, kernel_size=3, padding=1),
+            nn.BatchNorm1d(48),
+            nn.GELU(),
+        )
+
+        self.lstm = nn.LSTM(
+            input_size=48, hidden_size=self.hidden_size,
+            num_layers=2, batch_first=True, dropout=0.15,
+        )
+
+        self.attn = nn.Linear(self.hidden_size, 1)
+
+        self.heads = nn.ModuleDict()
+        for h in self.horizons:
+            self.heads[str(h)] = nn.Sequential(
+                nn.Linear(self.hidden_size, 48),
+                nn.BatchNorm1d(48),
+                nn.GELU(),
+                nn.Dropout(0.2),
+                nn.Linear(48, 7),
+            )
+
+    def forward(self, x: torch.Tensor) -> dict[str, dict[str, torch.Tensor]]:
+        cnn_in = x.permute(0, 2, 1)
+        cnn_out = self.cnn(cnn_in).permute(0, 2, 1)
+        lstm_out, _ = self.lstm(cnn_out)
+
+        scores = self.attn(lstm_out)
+        weights = torch.softmax(scores, dim=1)
+        context = (weights * lstm_out).sum(dim=1)
+
+        result = {}
+        for h in self.horizons:
+            raw = self.heads[str(h)](context)
+            result[str(h)] = {
+                "rain_probability": torch.sigmoid(raw[:, 0]),
+                "precip_mm": torch.relu(raw[:, 1]),
+                "temperature_c": raw[:, 2],
+                "wind_speed_kmh": torch.relu(raw[:, 3]),
+                "zonda_risk": torch.sigmoid(raw[:, 4]),
+                "storm_risk": torch.sigmoid(raw[:, 5]),
+                "hail_risk": torch.sigmoid(raw[:, 6]),
+            }
+        return result
+
+    @property
+    def n_parameters(self) -> int:
+        return sum(p.numel() for p in self.parameters() if p.requires_grad)
