@@ -8,7 +8,7 @@ gunicorn==22.0.0
 sqlalchemy==2.0.30
 alembic==1.13.1
 asyncpg==0.29.0
-psycopg2-binary==2.9.9
+psycopg2-binary==2.9.12
 
 # ── Background tasks (no Redis needed) ─────────────────────────
 apscheduler==3.10.4
@@ -17,8 +17,8 @@ apscheduler==3.10.4
 numpy==1.26.4
 pandas==2.2.2
 scikit-learn==1.4.2
-torch==2.3.0
-torchmetrics==1.4.0
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.3.0+cpu
 
 # ── Data sources ───────────────────────────────────────────────
 httpx==0.27.0
