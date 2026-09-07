@@ -8,7 +8,7 @@ import numpy as np
 from datetime import datetime, timedelta, timezone
 from sqlalchemy import create_engine, text
 
-URL = "postgresql://neondb_owner:npg_WhzpwYo76uJP@ep-hidden-bread-axfrgmam-pooler.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require"
+URL = os.environ.get("DATABASE_URL_SYNC", "")
 NASA_URL = "https://power.larc.nasa.gov/api/temporal/hourly/point"
 
 # Station configs: (station_id, zone_id, lat_offset, lng_offset, alt_offset, name)

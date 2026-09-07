@@ -1,7 +1,8 @@
 """Quick integration check against Neon DB."""
+import os
 from sqlalchemy import create_engine, text
 
-URL = "postgresql://neondb_owner:npg_WhzpwYo76uJP@ep-hidden-bread-axfrgmam-pooler.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require"
+URL = os.environ.get("DATABASE_URL_SYNC", "")
 
 e = create_engine(URL)
 with e.connect() as conn:
