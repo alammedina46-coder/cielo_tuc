@@ -13,8 +13,8 @@ build/
 .mypy_cache/
 .ruff_cache/
 
-# Modelos y artefactos de ML
-models/
+# Modelos y artefactos de ML (solo el directorio raíz, no app/models/)
+/models/
 mlruns/
 
 # IDE
