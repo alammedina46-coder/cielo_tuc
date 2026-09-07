@@ -1,12 +1,8 @@
 services:
   - type: web
     name: cielotuc-backend
-    runtime: python
-    pythonVersion: "3.11"
+    runtime: docker
     plan: free
-    rootDir: cielotuc-backend/cielotuc
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app.main:app -k uvicorn.workers.UvicornWorker -w 2 --bind 0.0.0.0:$PORT --timeout 120
     envVars:
       - key: DATABASE_URL
         sync: false
