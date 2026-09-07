@@ -13,7 +13,7 @@ All in one file for initial development; split as needed.
 from typing import Annotated, List
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import select, Integer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, require_role
@@ -98,10 +98,10 @@ async def ingest_reading(
 @sensors_router.get("/status")
 async def sensor_status(db: AsyncSession = Depends(get_db)):
     """Overview of all stations: online / offline / battery."""
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, timezone
     result = await db.execute(select(WeatherStation))
     stations = result.scalars().all()
-    cutoff = datetime.utcnow() - timedelta(hours=1)
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=1)
 
     return [
         {
@@ -209,56 +209,59 @@ async def get_comparison(
     """
     Compare CIELO·TUC accuracy vs SMN and Weather.com.
     Uses validated predictions from the last 30 days.
+    Returns placeholder data if no predictions exist yet.
     """
-    from datetime import timedelta
-    from datetime import datetime
+    from datetime import timedelta, datetime, timezone
     from sqlalchemy import and_, func
 
-    cutoff = datetime.utcnow() - timedelta(days=30)
+    cutoff = datetime.now(timezone.utc) - timedelta(days=30)
 
-    # Count correct predictions (was_confirmed == True) vs total
-    result = await db.execute(
-        select(
-            func.count(AIPrediction.id).label("total"),
-            func.sum(
-                (AIPrediction.was_confirmed == True).cast(type_=None)
-            ).label("correct"),
-        ).where(
-            and_(
-                AIPrediction.was_confirmed != None,
-                AIPrediction.generated_at >= cutoff,
+    try:
+        result = await db.execute(
+            select(
+                func.count(AIPrediction.id).label("total"),
+                func.sum(
+                    func.cast(AIPrediction.was_confirmed == True, type_=Integer)
+                ).label("correct"),
+            ).where(
+                and_(
+                    AIPrediction.was_confirmed.isnot(None),
+                    AIPrediction.generated_at >= cutoff,
+                    AIPrediction.zone_id == zone_id,
+                )
             )
         )
-    )
-    row = result.first()
-    total = row.total or 1
-    correct = row.correct or 0
-    cielotuc_acc = round(correct / total, 3) if total else 0.91
+        row = result.first()
+        total = row.total or 0
+        correct = row.correct or 0
+        cielotuc_acc = round(correct / total, 3) if total > 0 else 0.0
+    except Exception:
+        cielotuc_acc = 0.0
 
     return ComparisonResponse(
         zone_id=zone_id,
-        generated_at=datetime.utcnow(),
+        generated_at=datetime.now(timezone.utc),
         rows=[
             {
-                "variable": "Próximas 3h",
-                "cielotuc": "🌧 Lluvia fuerte",
-                "smn": "⛅ Parc. nublado",
-                "weather_com": "🌤 Despejado",
+                "variable": "Pronóstico 3h",
+                "cielotuc": "—",
+                "smn": "—",
+                "weather_com": "—",
             },
             {
-                "variable": "Próximas 12h",
-                "cielotuc": "⛈ Tormenta severa",
-                "smn": "🌧 Lluvia leve",
-                "weather_com": "⛅ Nublado",
+                "variable": "Pronóstico 12h",
+                "cielotuc": "—",
+                "smn": "—",
+                "weather_com": "—",
             },
             {
-                "variable": "Temperatura máx",
-                "cielotuc": "28°C",
-                "smn": "30°C",
-                "weather_com": "29°C",
+                "variable": "Temperatura",
+                "cielotuc": "—",
+                "smn": "—",
+                "weather_com": "—",
             },
         ],
-        cielotuc_accuracy=cielotuc_acc or 0.914,
+        cielotuc_accuracy=cielotuc_acc,
         smn_accuracy=0.672,
         weathercom_accuracy=0.718,
         notable_wins=[],
@@ -270,6 +273,7 @@ async def trigger_retrain(
     _user: Annotated[User, Depends(require_role("admin"))] = None,
 ):
     """Manually trigger model retraining (government dashboard). Admin only."""
+    import uuid
     from app.services.tasks import retrain_model
-    task = retrain_model.delay()
-    return {"task_id": task.id, "status": "queued"}
+    scheduler.add_job(retrain_model, id=f"retrain_{uuid.uuid4().hex[:8]}")
+    return {"task_id": uuid.uuid4().hex[:8], "status": "queued"}
