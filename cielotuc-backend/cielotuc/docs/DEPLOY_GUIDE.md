@@ -119,6 +119,33 @@ Si querés que `api.cielotuc.com.ar` apunte al backend:
 
 ---
 
+## Paso 7: Configurar Twilio para alertas SMS/WhatsApp (10 min, opcional)
+
+1. Andá a **https://www.twilio.com** y creá cuenta
+2. En **Console > Dashboard** copiá:
+   - `Account SID` → va en `TWILIO_ACCOUNT_SID`
+   - `Auth Token` → va en `TWILIO_AUTH_TOKEN`
+3. En **Phone Numbers > Buy a Number** comprá un número (desde ~$1 USD/mes):
+   - Copiá el número (ej: `+1234567890`) → va en `TWILIO_FROM_PHONE`
+4. Para WhatsApp:
+   - Andá a **Messaging > Try WhatsApp** y activá el sandbox
+   - El sandbox number → va en `TWILIO_WHATSAPP_FROM` (formato: `whatsapp:+1234567890`)
+5. Agregá en Render **Environment Variables**:
+   ```
+   TWILIO_ACCOUNT_SID=ACxxxxxxxx
+   TWILIO_AUTH_TOKEN=your_auth_token
+   TWILIO_FROM_PHONE=+1234567890
+   TWILIO_WHATSAPP_FROM=whatsapp:+1234567890
+   TWILIO_ALERT_RECIPIENTS=+5493815551234
+   ```
+
+**Cómo funciona:**
+- Las alertas automáticas (lluvia extrema, Zonda) se envían por SMS/WhatsApp a los números en `TWILIO_ALERT_RECIPIENTS`
+- Los técnicos/admin pueden enviar alertas manuales desde el dashboard gobierno (`/gobierno`)
+- Si Twilio no está configurado, las alertas se registran en la DB pero no se envían
+
+---
+
 ## Verificación post-deploy
 
 ```bash
@@ -167,9 +194,10 @@ WINDY_API_KEY=
 SMN_API_URL=https://ws.smn.gob.ar/map_items/weather
 NASA_POWER_BASE_URL=https://power.larc.nasa.gov/api/temporal
 
-# Twilio (opcional)
-TWILIO_ACCOUNT_SID=
-TWILIO_AUTH_TOKEN=
-TWILIO_FROM_PHONE=
-TWILIO_WHATSAPP_FROM=
+# Twilio (opcional — para enviar alertas SMS/WhatsApp)
+TWILIO_ACCOUNT_SID=ACxxxxxxxx
+TWILIO_AUTH_TOKEN=your_auth_token
+TWILIO_FROM_PHONE=+1234567890
+TWILIO_WHATSAPP_FROM=whatsapp:+1234567890
+TWILIO_ALERT_RECIPIENTS=+5493815551234,+5493815555678
 ```
