@@ -16,7 +16,7 @@ Usage
 """
 
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -145,7 +145,7 @@ class WeatherDataPipeline:
         Fetch half-hourly precipitation from NASA GPM IMERG.
         Aggregates to hourly.
         """
-        end = datetime.utcnow()
+        end = datetime.now(timezone.utc)
         start = end - timedelta(days=days_back)
         url = (
             f"{settings.nasa_gpm_base_url}/precipitation"
@@ -177,7 +177,7 @@ class WeatherDataPipeline:
         Fetch hourly temperature, humidity, wind from NASA POWER.
         Free — no API key required.
         """
-        end = datetime.utcnow()
+        end = datetime.now(timezone.utc)
         start = end - timedelta(days=days_back)
         params = {
             "parameters": "T2M,RH2M,WS10M,WD10M,PS,ALLSKY_SFC_SW_DWN",

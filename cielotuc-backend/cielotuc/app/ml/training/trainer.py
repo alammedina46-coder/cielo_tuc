@@ -16,7 +16,7 @@ Typical usage
 """
 
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -156,7 +156,7 @@ class ModelTrainer:
 
         Returns a dict of metrics logged to MLflow.
         """
-        version = version or datetime.utcnow().strftime("%Y%m%d_%H%M")
+        version = version or datetime.now(timezone.utc).strftime("%Y%m%d_%H%M")
         mlflow.set_tracking_uri(settings.mlflow_tracking_uri)
         mlflow.set_experiment(settings.mlflow_experiment_name)
 
@@ -292,4 +292,4 @@ class ModelTrainer:
         Threshold: settings.model_retrain_interval_days (default 30).
         """
         threshold = timedelta(days=settings.model_retrain_interval_days)
-        return datetime.utcnow() - last_trained_at >= threshold
+        return datetime.now(timezone.utc) - last_trained_at >= threshold

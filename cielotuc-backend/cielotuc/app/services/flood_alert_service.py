@@ -7,7 +7,7 @@ extreme rainfall (>= settings.floodtuc_alert_threshold_mm).
 Also handles manual alerts triggered from the government dashboard.
 Sends SMS/WhatsApp notifications to emergency contacts after alert.
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import httpx
@@ -72,7 +72,7 @@ class FloodAlertService:
             "rain_probability": round(rain_probability, 3),
             "expected_precip_mm": round(expected_precip_mm, 1),
             "trigger_type": trigger_type,
-            "generated_at": datetime.utcnow().isoformat(),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
             "notes": notes,
         }
 
@@ -138,7 +138,7 @@ class FloodAlertService:
             rain_probability=rain_probability,
             expected_precip_mm=expected_precip_mm,
             trigger_type=trigger_type,
-            triggered_at=alert.triggered_at or datetime.utcnow(),
+            triggered_at=alert.triggered_at or datetime.now(timezone.utc),
             delivered=delivered,
             floodtuc_response_code=status_code,
             notes=notes,

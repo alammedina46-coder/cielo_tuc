@@ -12,7 +12,7 @@ Responsibilities:
   - Trigger FLOOD·TUC alerts when thresholds are exceeded
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import torch
@@ -155,7 +155,7 @@ class PredictionService:
             raw_preds = self._model(x)
 
         # ── 4. Post-process output ─────────────────────────────
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         latest_row = readings[-1]
 
         current = CurrentConditions(
@@ -254,7 +254,7 @@ class PredictionService:
         readings = await self._get_recent_readings(zone_id, db, hours=6)
         if not readings:
             return ZondaIndex(
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(timezone.utc),
                 risk_score=0.0,
                 risk_level="none",
                 forecast_24h_probability=0.0,
@@ -284,7 +284,7 @@ class PredictionService:
             level = "active"
 
         return ZondaIndex(
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             risk_score=round(score, 1),
             risk_level=level,
             cordillera_pressure_hpa=latest.cordillera_pressure_hpa,
@@ -302,7 +302,7 @@ class PredictionService:
         hours: int | None = None,
     ) -> list[SensorReading]:
         hours = hours or settings.model_lookback_hours
-        cutoff = datetime.utcnow() - timedelta(hours=hours)
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
         result = await db.execute(
             select(SensorReading)
             .join(WeatherStation)
