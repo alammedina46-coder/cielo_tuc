@@ -220,15 +220,17 @@ async def get_comparison(
     cielotuc_temp_rmse = 15.8
     cielotuc_composite = 0.555
 
-    metrics_path = Path("models/metrics_v1.0-20260905.json")
-    if metrics_path.exists():
-        try:
-            m = json.loads(metrics_path.read_text())
-            cielotuc_rain_acc = m.get("rain_accuracy", cielotuc_rain_acc)
-            cielotuc_temp_rmse = m.get("temp_rmse_c", cielotuc_temp_rmse)
-            cielotuc_composite = m.get("composite_accuracy", cielotuc_composite)
-        except Exception:
-            pass
+    # Try v2.0 metrics first, then v1.0
+    for mp in [Path("models/metrics_v2.0-20260907.json"), Path("models/metrics_v1.0-20260905.json")]:
+        if mp.exists():
+            try:
+                m = json.loads(mp.read_text())
+                cielotuc_rain_acc = m.get("avg_rain_accuracy", m.get("rain_accuracy", cielotuc_rain_acc))
+                cielotuc_temp_rmse = m.get("avg_temp_rmse_c", m.get("temp_rmse_c", cielotuc_temp_rmse))
+                cielotuc_composite = m.get("avg_composite_accuracy", m.get("composite_accuracy", cielotuc_composite))
+                break
+            except Exception:
+                pass
 
     # Also try DB predictions if they exist
     try:

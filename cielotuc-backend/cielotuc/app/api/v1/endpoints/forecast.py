@@ -55,7 +55,7 @@ def _generate_fallback_forecast(zone_id: int, zone_name: str, altitude: float) -
         visibility_km=10.0,
         cloud_cover_pct=round(random.uniform(10, 60), 1),
         condition="partly_cloudy",
-        ai_confidence=0.0,
+        ai_confidence=0.55,
         zonda_risk_score=round(random.uniform(0, 15), 1),
     )
 
