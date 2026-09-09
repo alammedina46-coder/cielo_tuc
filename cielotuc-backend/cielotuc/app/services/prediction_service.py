@@ -92,7 +92,9 @@ class PredictionService:
                 horizons = ckpt.get("horizons", settings.model_forecast_horizons)
 
                 # Choose model class based on saved metadata
-                if n_features >= 47 and n_timesteps <= 24:
+                sd_keys = set(ckpt.get("model_state_dict", {}).keys())
+                is_v3 = "se_expand" in sd_keys
+                if is_v3 and n_timesteps <= 24:
                     self._model = WeatherModelV3(
                         n_features=n_features, n_timesteps=n_timesteps, horizons=horizons,
                     ).to(self._device)

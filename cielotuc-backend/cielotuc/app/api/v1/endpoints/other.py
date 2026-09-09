@@ -221,7 +221,7 @@ async def get_comparison(
     cielotuc_composite = 0.555
 
     # Try v3.0 metrics first, then v2.0, then v1.0
-    for mp in [Path("models/metrics_v3.0-20260909.json"), Path("models/metrics_v2.0-20260907.json"), Path("models/metrics_v1.0-20260905.json")]:
+    for mp in [Path("models/metrics_v4.0-20260909.json"), Path("models/metrics_v3.0-20260909.json"), Path("models/metrics_v2.0-20260907.json"), Path("models/metrics_v1.0-20260905.json")]:
         if mp.exists():
             try:
                 m = json.loads(mp.read_text())
