@@ -1233,7 +1233,7 @@ if __name__ == "__main__":
     parser.add_argument("--max-epochs", type=int, default=100)
     parser.add_argument("--folds", type=int, default=3)
     parser.add_argument("--batch-size", type=int, default=512)
-    args = parser.parse_args()
+    args, _ = parser.parse_known_args()
     asyncio.run(main(
         years_back=args.years,
         n_synthetic=args.n_synthetic,
