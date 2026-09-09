@@ -306,3 +306,91 @@ class FastWeatherModel(nn.Module):
     @property
     def n_parameters(self) -> int:
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
+
+
+# ── v3.0: GPU-trained model with SE attention + residual ───────
+class WeatherModelV3(nn.Module):
+    """
+    CIELO·TUC v3.0 — Colab GPU trained.
+    3-layer LSTM (128 hidden) with residual skip, 2 CNN layers (64ch),
+    Squeeze-and-Excitation channel attention, deeper forecast heads.
+    517K params, 47 features, 24h lookback.
+    """
+
+    def __init__(
+        self,
+        n_features: int = 47,
+        n_timesteps: int = 24,
+        horizons: list[int] | None = None,
+    ):
+        super().__init__()
+        self.horizons = horizons or [3, 6, 12, 24, 48, 168]
+        self.hidden = 128
+
+        self.cnn1 = nn.Sequential(
+            nn.Conv1d(n_features, 64, kernel_size=3, padding=1),
+            nn.BatchNorm1d(64), nn.GELU(),
+        )
+        self.cnn2 = nn.Sequential(
+            nn.Conv1d(64, 64, kernel_size=5, padding=2),
+            nn.BatchNorm1d(64), nn.GELU(),
+        )
+
+        self.se_pool = nn.AdaptiveAvgPool1d(1)
+        self.se_fc = nn.Sequential(nn.Linear(64, 16), nn.GELU(), nn.Linear(16, 64), nn.Sigmoid())
+
+        self.lstm_proj = nn.Linear(64, self.hidden)
+        self.lstm = nn.LSTM(
+            input_size=self.hidden, hidden_size=self.hidden,
+            num_layers=3, batch_first=True, dropout=0.2,
+        )
+        self.residual_proj = nn.Linear(64, self.hidden)
+
+        self.attn = nn.Sequential(
+            nn.Linear(self.hidden, 64), nn.Tanh(), nn.Linear(64, 1),
+        )
+
+        self.heads = nn.ModuleDict()
+        for h in self.horizons:
+            self.heads[str(h)] = nn.Sequential(
+                nn.Linear(self.hidden, 64),
+                nn.BatchNorm1d(64), nn.GELU(), nn.Dropout(0.2),
+                nn.Linear(64, 32), nn.GELU(), nn.Dropout(0.1),
+                nn.Linear(32, 7),
+            )
+
+    def forward(self, x: torch.Tensor) -> dict[str, dict[str, torch.Tensor]]:
+        c1 = self.cnn1(x.permute(0, 2, 1))
+        c2 = self.cnn2(c1)
+        c_out = c1 + c2
+
+        se = self.se_pool(c_out).squeeze(-1)
+        se = self.se_fc(se).unsqueeze(-1)
+        c_out = c_out * se
+
+        lstm_in = self.lstm_proj(c_out.permute(0, 2, 1))
+        skip = self.residual_proj(c_out.permute(0, 2, 1))
+        lstm_out, _ = self.lstm(lstm_in)
+        lstm_out = lstm_out + skip
+
+        scores = self.attn(lstm_out)
+        weights = torch.softmax(scores, dim=1)
+        context = (weights * lstm_out).sum(dim=1)
+
+        result = {}
+        for h in self.horizons:
+            raw = self.heads[str(h)](context)
+            result[str(h)] = {
+                "rain_probability": torch.sigmoid(raw[:, 0]),
+                "precip_mm": torch.relu(raw[:, 1]),
+                "temperature_c": raw[:, 2],
+                "wind_speed_kmh": torch.relu(raw[:, 3]),
+                "zonda_risk": torch.sigmoid(raw[:, 4]),
+                "storm_risk": torch.sigmoid(raw[:, 5]),
+                "hail_risk": torch.sigmoid(raw[:, 6]),
+            }
+        return result
+
+    @property
+    def n_parameters(self) -> int:
+        return sum(p.numel() for p in self.parameters() if p.requires_grad)

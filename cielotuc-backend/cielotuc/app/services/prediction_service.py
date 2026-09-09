@@ -21,7 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.core.config import settings
-from app.ml.models.cnn_lstm import CnnLstmWeatherModel, FastWeatherModel
+from app.ml.models.cnn_lstm import CnnLstmWeatherModel, FastWeatherModel, WeatherModelV3
 from app.ml.pipeline.data_pipeline import WeatherDataPipeline, FEATURE_COLS
 from app.models.weather import (
     AIPrediction, ModelVersion, SensorReading, WeatherStation, Zone
@@ -92,7 +92,11 @@ class PredictionService:
                 horizons = ckpt.get("horizons", settings.model_forecast_horizons)
 
                 # Choose model class based on saved metadata
-                if n_features > 34 or n_timesteps <= 24:
+                if n_features >= 47 and n_timesteps <= 24:
+                    self._model = WeatherModelV3(
+                        n_features=n_features, n_timesteps=n_timesteps, horizons=horizons,
+                    ).to(self._device)
+                elif n_features > 34 or n_timesteps <= 24:
                     self._model = FastWeatherModel(
                         n_features=n_features, n_timesteps=n_timesteps, horizons=horizons,
                     ).to(self._device)

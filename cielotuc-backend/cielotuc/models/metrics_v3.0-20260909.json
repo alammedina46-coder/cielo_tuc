@@ -1,0 +1,306 @@
+{
+  "version": "3.0-20260909",
+  "trained_at": "2026-09-09T01:39:54.996432+00:00",
+  "training_samples": 44757,
+  "years_of_data": 15,
+  "synthetic_events": 2000,
+  "device": "cuda",
+  "lookback_hours": 24,
+  "horizons": [
+    3,
+    6,
+    12,
+    24,
+    48,
+    168
+  ],
+  "avg_composite_accuracy": 0.7101763061091423,
+  "avg_rain_accuracy": 0.616448217654652,
+  "avg_temp_rmse_c": 14.326994655567887,
+  "final_metrics": {
+    "3h": {
+      "rain_probability": {
+        "accuracy": 0.8577599046767947,
+        "precision": 0.8312236286919831,
+        "recall": 0.8548064085447263,
+        "f1": 0.8428500905051834
+      },
+      "precip_mm": {
+        "rmse": 11.077849864905849,
+        "mae": 5.463649749755859
+      },
+      "temperature_c": {
+        "rmse": 17.229177983136903,
+        "mae": 12.704207420349121
+      },
+      "wind_speed_kmh": {
+        "rmse": 14.531084088434566,
+        "mae": 9.034151077270508
+      },
+      "zonda_risk": {
+        "accuracy": 0.9261245159368484,
+        "precision": 0.7084527220630372,
+        "recall": 0.9174397031539888,
+        "f1": 0.799514955537591
+      },
+      "storm_risk": {
+        "accuracy": 0.8768245457253501,
+        "precision": 0.8666210670314638,
+        "recall": 0.852911477616964,
+        "f1": 0.8597116200169636
+      },
+      "hail_risk": {
+        "accuracy": 0.9371462615430444,
+        "precision": 0.6972704714640199,
+        "recall": 0.9377085650723026,
+        "f1": 0.7998102466793169
+      },
+      "composite_accuracy": 0.8047098590221615
+    },
+    "6h": {
+      "rain_probability": {
+        "accuracy": 0.7938635686624963,
+        "precision": 0.7181916621548456,
+        "recall": 0.8855140186915887,
+        "f1": 0.7931240657698057
+      },
+      "precip_mm": {
+        "rmse": 14.314063374119884,
+        "mae": 8.103520393371582
+      },
+      "temperature_c": {
+        "rmse": 15.772857549547586,
+        "mae": 12.059381484985352
+      },
+      "wind_speed_kmh": {
+        "rmse": 18.04649282603998,
+        "mae": 11.879240989685059
+      },
+      "zonda_risk": {
+        "accuracy": 0.9078045874292523,
+        "precision": 0.6812400635930048,
+        "recall": 0.7972093023255814,
+        "f1": 0.7346763823403344
+      },
+      "storm_risk": {
+        "accuracy": 0.8340780458742926,
+        "precision": 0.7856044294063365,
+        "recall": 0.859643217771794,
+        "f1": 0.8209578913532626
+      },
+      "hail_risk": {
+        "accuracy": 0.9386356866249628,
+        "precision": 0.7523316062176166,
+        "recall": 0.8075639599555061,
+        "f1": 0.778969957081545
+      },
+      "composite_accuracy": 0.7897239940545502
+    },
+    "12h": {
+      "rain_probability": {
+        "accuracy": 0.6686029192731605,
+        "precision": 0.5839320705421294,
+        "recall": 0.8951935914552737,
+        "f1": 0.7068124917643959
+      },
+      "precip_mm": {
+        "rmse": 19.763567549785183,
+        "mae": 13.415868759155273
+      },
+      "temperature_c": {
+        "rmse": 15.461622410928454,
+        "mae": 12.00696849822998
+      },
+      "wind_speed_kmh": {
+        "rmse": 23.042944580106838,
+        "mae": 16.374494552612305
+      },
+      "zonda_risk": {
+        "accuracy": 0.8945487042001787,
+        "precision": 0.6703806870937791,
+        "recall": 0.6716279069767442,
+        "f1": 0.671003717472119
+      },
+      "storm_risk": {
+        "accuracy": 0.7295204051236223,
+        "precision": 0.6568867155664222,
+        "recall": 0.8138673847189498,
+        "f1": 0.7269993986770896
+      },
+      "hail_risk": {
+        "accuracy": 0.8711647304140602,
+        "precision": 0.5132398753894081,
+        "recall": 0.7330367074527252,
+        "f1": 0.6037562986715529
+      },
+      "composite_accuracy": 0.7296898690626813
+    },
+    "24h": {
+      "rain_probability": {
+        "accuracy": 0.48331843908251415,
+        "precision": 0.4630526480237463,
+        "recall": 0.9893190921228304,
+        "f1": 0.6308396296690433
+      },
+      "precip_mm": {
+        "rmse": 25.757180999613972,
+        "mae": 21.800296783447266
+      },
+      "temperature_c": {
+        "rmse": 12.98744769411688,
+        "mae": 10.518622398376465
+      },
+      "wind_speed_kmh": {
+        "rmse": 28.933827638871726,
+        "mae": 23.653833389282227
+      },
+      "zonda_risk": {
+        "accuracy": 0.8550789395293417,
+        "precision": 0.5929203539823009,
+        "recall": 0.310760667903525,
+        "f1": 0.4077906269020085
+      },
+      "storm_risk": {
+        "accuracy": 0.5393208221626452,
+        "precision": 0.48927189588462894,
+        "recall": 0.9363850555368562,
+        "f1": 0.6427168765161141
+      },
+      "hail_risk": {
+        "accuracy": 0.8661006851355377,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "composite_accuracy": 0.662180792554562
+    },
+    "48h": {
+      "rain_probability": {
+        "accuracy": 0.4462317545427465,
+        "precision": 0.4462317545427465,
+        "recall": 1.0,
+        "f1": 0.6170957775489186
+      },
+      "precip_mm": {
+        "rmse": 27.14383166865448,
+        "mae": 24.008577346801758
+      },
+      "temperature_c": {
+        "rmse": 11.946722652213294,
+        "mae": 9.548792839050293
+      },
+      "wind_speed_kmh": {
+        "rmse": 30.923432328772748,
+        "mae": 25.773038864135742
+      },
+      "zonda_risk": {
+        "accuracy": 0.8379505510872803,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "storm_risk": {
+        "accuracy": 0.44250819183795054,
+        "precision": 0.44250819183795054,
+        "recall": 1.0,
+        "f1": 0.613526071244192
+      },
+      "hail_risk": {
+        "accuracy": 0.8661006851355377,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "composite_accuracy": 0.6389134188392811
+    },
+    "168h": {
+      "rain_probability": {
+        "accuracy": 0.4489127196901996,
+        "precision": 0.4489127196901996,
+        "recall": 1.0,
+        "f1": 0.6196546052631579
+      },
+      "precip_mm": {
+        "rmse": 27.103921461547774,
+        "mae": 24.030994415283203
+      },
+      "temperature_c": {
+        "rmse": 12.564139643464202,
+        "mae": 10.307812690734863
+      },
+      "wind_speed_kmh": {
+        "rmse": 31.28820711221522,
+        "mae": 26.4171142578125
+      },
+      "zonda_risk": {
+        "accuracy": 0.8406315162347334,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "storm_risk": {
+        "accuracy": 0.44578492701817096,
+        "precision": 0.44578492701817096,
+        "recall": 1.0,
+        "f1": 0.6166683836406717
+      },
+      "hail_risk": {
+        "accuracy": 0.8626750074471254,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "composite_accuracy": 0.6358399031216179
+    }
+  },
+  "n_parameters": 517435,
+  "feat_cols": [
+    "temperature_c",
+    "humidity_pct",
+    "wind_speed_kmh",
+    "wind_direction_deg",
+    "pressure_hpa",
+    "precip_mm",
+    "solar_radiation_wm2",
+    "temperature_min_c",
+    "temperature_max_c",
+    "cape_j_kg",
+    "cordillera_pressure_hpa",
+    "thermal_differential_c",
+    "hour_sin",
+    "hour_cos",
+    "doy_sin",
+    "doy_cos",
+    "uv_index",
+    "dew_point_c",
+    "feels_like_c",
+    "altitude_m",
+    "impermeable_pct",
+    "is_mountain",
+    "enso_index",
+    "ndvi",
+    "soil_temp_c",
+    "precipitable_water_mm",
+    "visibility_km",
+    "cloud_cover_pct",
+    "precip_3h_mm",
+    "precip_6h_mm",
+    "precip_24h_mm",
+    "k_index",
+    "pressure_sea_level_hpa",
+    "temp_lag_1h",
+    "temp_lag_3h",
+    "temp_tendency",
+    "temp_range_24h",
+    "humid_lag_1h",
+    "humid_tendency",
+    "pressure_tendency_3h",
+    "pressure_tendency_24h",
+    "wind_lag_1h",
+    "precip_lag_1h",
+    "precip_tendency",
+    "temp_humid_index",
+    "instability_index",
+    "wind_pressure_ratio"
+  ]
+}
