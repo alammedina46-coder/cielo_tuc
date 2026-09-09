@@ -168,7 +168,7 @@ class WeatherLossV4(nn.Module):
 
     def forward(self, preds: Dict[str, Dict[str, torch.Tensor]],
                 targets: Dict[str, Dict[str, torch.Tensor]]) -> torch.Tensor:
-        device = preds["rain_probability"].device
+        device = preds[str(self.horizons[0])]["rain_probability"].device
         total_loss = torch.tensor(0.0, device=device, requires_grad=True)
         weight_sum = 0.0
 
