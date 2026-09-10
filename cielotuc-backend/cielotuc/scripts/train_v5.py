@@ -1503,6 +1503,7 @@ async def main(
     torch.save({
         "model_state_dict": best_model.state_dict(),
         "version": version,
+        "model_class": "FastWeatherModelV5",
         "horizons": HORIZONS,
         "n_features": X.shape[2],
         "n_timesteps": LOOKBACK,

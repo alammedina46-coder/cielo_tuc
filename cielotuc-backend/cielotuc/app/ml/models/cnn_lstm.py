@@ -308,6 +308,75 @@ class FastWeatherModel(nn.Module):
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
 
 
+# ── v5.0: Increased capacity over v2.0 ───────────────────────
+class FastWeatherModelV5(nn.Module):
+    """
+    CIELO·TUC v5.0 — 10-zone trained, increased capacity.
+    1-layer CNN (64 channels) + 2-layer LSTM (112 hidden) + Attention + heads (56).
+    ~232K params, 53 features, 24h lookback.
+    """
+
+    def __init__(
+        self,
+        n_features: int = 53,
+        n_timesteps: int = 24,
+        horizons: list[int] | None = None,
+    ):
+        super().__init__()
+        self.horizons = horizons or [3, 6, 12, 24, 48, 168]
+        self.hidden_size = 112
+
+        self.cnn = nn.Sequential(
+            nn.Conv1d(n_features, 64, kernel_size=3, padding=1),
+            nn.BatchNorm1d(64),
+            nn.GELU(),
+        )
+
+        self.lstm = nn.LSTM(
+            input_size=64, hidden_size=self.hidden_size,
+            num_layers=2, batch_first=True, dropout=0.15,
+        )
+
+        self.attn = nn.Linear(self.hidden_size, 1)
+
+        self.heads = nn.ModuleDict()
+        for h in self.horizons:
+            self.heads[str(h)] = nn.Sequential(
+                nn.Linear(self.hidden_size, 56),
+                nn.BatchNorm1d(56),
+                nn.GELU(),
+                nn.Dropout(0.2),
+                nn.Linear(56, 7),
+            )
+
+    def forward(self, x: torch.Tensor) -> dict[str, dict[str, torch.Tensor]]:
+        cnn_in = x.permute(0, 2, 1)
+        cnn_out = self.cnn(cnn_in).permute(0, 2, 1)
+        lstm_out, _ = self.lstm(cnn_out)
+
+        scores = self.attn(lstm_out)
+        weights = torch.softmax(scores, dim=1)
+        context = (weights * lstm_out).sum(dim=1)
+
+        result = {}
+        for h in self.horizons:
+            raw = self.heads[str(h)](context)
+            result[str(h)] = {
+                "rain_probability": torch.sigmoid(raw[:, 0]),
+                "precip_mm": torch.relu(raw[:, 1]),
+                "temperature_c": raw[:, 2],
+                "wind_speed_kmh": torch.relu(raw[:, 3]),
+                "zonda_risk": torch.sigmoid(raw[:, 4]),
+                "storm_risk": torch.sigmoid(raw[:, 5]),
+                "hail_risk": torch.sigmoid(raw[:, 6]),
+            }
+        return result
+
+    @property
+    def n_parameters(self) -> int:
+        return sum(p.numel() for p in self.parameters() if p.requires_grad)
+
+
 # ── v3.0: GPU-trained model with SE attention + residual ───────
 class WeatherModelV3(nn.Module):
     """

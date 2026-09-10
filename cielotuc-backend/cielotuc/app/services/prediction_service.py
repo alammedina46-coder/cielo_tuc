@@ -21,7 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.core.config import settings
-from app.ml.models.cnn_lstm import CnnLstmWeatherModel, FastWeatherModel, WeatherModelV3
+from app.ml.models.cnn_lstm import CnnLstmWeatherModel, FastWeatherModel, FastWeatherModelV5, WeatherModelV3
 from app.ml.pipeline.data_pipeline import WeatherDataPipeline, FEATURE_COLS
 from app.models.weather import (
     AIPrediction, ModelVersion, SensorReading, WeatherStation, Zone
@@ -93,9 +93,22 @@ class PredictionService:
 
                 # Choose model class based on saved metadata
                 sd_keys = set(ckpt.get("model_state_dict", {}).keys())
-                is_v3 = "se_expand" in sd_keys
+                model_class = ckpt.get("model_class", "")
+                is_v3 = "se_expand" in sd_keys or model_class == "WeatherModelV3"
+                is_v5 = model_class == "FastWeatherModelV5"
+
+                # Fallback: detect v5.0 vs v2.0 by head layer output size (56 vs 48)
+                if not is_v3 and not is_v5:
+                    head_keys = [k for k in sd_keys if k.startswith("heads.") and k.endswith(".0.weight")]
+                    if head_keys:
+                        is_v5 = ckpt["model_state_dict"][head_keys[0]].shape[0] == 56
+
                 if is_v3 and n_timesteps <= 24:
                     self._model = WeatherModelV3(
+                        n_features=n_features, n_timesteps=n_timesteps, horizons=horizons,
+                    ).to(self._device)
+                elif is_v5:
+                    self._model = FastWeatherModelV5(
                         n_features=n_features, n_timesteps=n_timesteps, horizons=horizons,
                     ).to(self._device)
                 elif n_features > 34 or n_timesteps <= 24:
