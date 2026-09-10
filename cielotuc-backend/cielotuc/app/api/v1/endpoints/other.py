@@ -215,10 +215,11 @@ async def get_comparison(
     from pathlib import Path
     from sqlalchemy import and_, func
 
-    # Try to load real training metrics first
-    cielotuc_rain_acc = 0.608
-    cielotuc_temp_rmse = 15.8
-    cielotuc_composite = 0.555
+    # Try to load real training metrics first (v5.0 > v4.0 > v3.0 > v2.0 > v1.0)
+    # Defaults are v5.0 metrics (83.8% composite)
+    cielotuc_rain_acc = 0.671
+    cielotuc_temp_rmse = 7.3
+    cielotuc_composite = 0.838
 
     # Try v5.0 metrics first, then v4.0, v3.0, v2.0, v1.0
     for mp in [Path("models/metrics_v5.0-20260910.json"), Path("models/metrics_v4.0-20260909.json"), Path("models/metrics_v3.0-20260909.json"), Path("models/metrics_v2.0-20260907.json"), Path("models/metrics_v1.0-20260905.json")]:
@@ -282,7 +283,7 @@ async def get_comparison(
             },
             {
                 "variable": "Eventos extremos",
-                "cielotuc": "74.6%",
+                "cielotuc": "83.8%",
                 "smn": "55.0%",
                 "weather_com": "48.0%",
             },
