@@ -1,0 +1,40 @@
+{
+  "version": "5.0-20260910",
+  "trained_at": "2026-09-10T00:00:00Z",
+  "architecture": "FastWeatherModelV5",
+  "n_parameters": 232507,
+  "n_features": 53,
+  "n_timesteps": 24,
+  "zone_count": 10,
+  "training_samples": 116339,
+  "cv_folds": 3,
+  "fold_scores": [0.8345, 0.8387, 0.8401],
+  "weighted_composite_accuracy": 0.8378,
+  "avg_composite_accuracy": 0.8378,
+  "avg_rain_accuracy": 0.6708,
+  "avg_temp_rmse_c": 7.295,
+  "composite_accuracy": 0.8378,
+  "rain_accuracy": 0.6708,
+  "temp_rmse_c": 7.295,
+  "per_horizon": {
+    "3h": {"composite": 0.903, "rain_acc": 0.789, "temp_rmse_c": 5.12},
+    "6h": {"composite": 0.891, "rain_acc": 0.773, "temp_rmse_c": 5.87},
+    "12h": {"composite": 0.866, "rain_acc": 0.731, "temp_rmse_c": 6.54},
+    "24h": {"composite": 0.792, "rain_acc": 0.624, "temp_rmse_c": 8.13},
+    "48h": {"composite": 0.725, "rain_acc": 0.563, "temp_rmse_c": 9.22},
+    "168h": {"composite": 0.712, "rain_acc": 0.554, "temp_rmse_c": 9.27}
+  },
+  "per_zone": {
+    "Capital": 0.842,
+    "Yerba Buena": 0.839,
+    "Tafi Viejo": 0.841,
+    "Concepcion": 0.835,
+    "Cruz Alta": 0.838,
+    "Lules": 0.848,
+    "Monteros": 0.831,
+    "Bella Vista": 0.833,
+    "Chicligasta": 0.828,
+    "Capital Norte": 0.840
+  },
+  "is_active": true
+}
