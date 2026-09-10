@@ -183,14 +183,15 @@ class FocalBCE(nn.Module):
         self.pw = pos_weight
 
     def forward(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-        # Cast to float32 for numerical stability under AMP
-        pred_f32 = pred.float()
-        target_f32 = target.float()
-        bce = F.binary_cross_entropy(pred_f32, target_f32, reduction="none")
-        pt = torch.where(target_f32 == 1, pred_f32, 1 - pred_f32)
-        focal = (1 - pt) ** self.gamma
-        weight = torch.where(target_f32 == 1, self.pw, 1.0)
-        return (focal * weight * bce).mean()
+        # Disable autocast — BCE is unsafe under AMP even with float32 cast
+        with torch.amp.autocast(pred.device.type, enabled=False):
+            pred_f32 = pred.float()
+            target_f32 = target.float()
+            bce = F.binary_cross_entropy(pred_f32, target_f32, reduction="none")
+            pt = torch.where(target_f32 == 1, pred_f32, 1 - pred_f32)
+            focal = (1 - pt) ** self.gamma
+            weight = torch.where(target_f32 == 1, self.pw, 1.0)
+            return (focal * weight * bce).mean()
 
 
 # ── Horizon-Weighted Loss ───────────────────────────────────────
