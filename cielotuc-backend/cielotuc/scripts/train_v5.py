@@ -24,18 +24,48 @@ Usage:
 import argparse
 import asyncio
 import json
+import subprocess
 import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Tuple
 
+def _ensure_deps():
+    """Auto-install missing packages (useful in Colab)."""
+    required = {"httpx": "httpx", "loguru": "loguru", "sklearn": "scikit-learn"}
+    missing = []
+    for mod, pkg in required.items():
+        try:
+            __import__(mod)
+        except ImportError:
+            missing.append(pkg)
+    if missing:
+        print(f"Installing missing packages: {', '.join(missing)}")
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "-q"] + missing)
+
+_ensure_deps()
+
 import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from loguru import logger
+
+# loguru is optional — fallback to print-based logger for Colab
+try:
+    from loguru import logger
+except ImportError:
+    import logging
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(message)s", datefmt="%H:%M:%S")
+    logger = logging.getLogger("train_v5")
+    # Duck-type logger to match loguru API
+    class _Logger:
+        def info(self, msg, *a, **kw): logger.info(msg, *a)
+        def warning(self, msg, *a, **kw): logger.warning(msg, *a)
+        def error(self, msg, *a, **kw): logger.error(msg, *a)
+    logger = _Logger()
+
 from sklearn.metrics import (
     accuracy_score,
     mean_absolute_error,
@@ -153,10 +183,13 @@ class FocalBCE(nn.Module):
         self.pw = pos_weight
 
     def forward(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-        bce = F.binary_cross_entropy(pred, target, reduction="none")
-        pt = torch.where(target == 1, pred, 1 - pred)
+        # Cast to float32 for numerical stability under AMP
+        pred_f32 = pred.float()
+        target_f32 = target.float()
+        bce = F.binary_cross_entropy(pred_f32, target_f32, reduction="none")
+        pt = torch.where(target_f32 == 1, pred_f32, 1 - pred_f32)
         focal = (1 - pt) ** self.gamma
-        weight = torch.where(target == 1, self.pw, 1.0)
+        weight = torch.where(target_f32 == 1, self.pw, 1.0)
         return (focal * weight * bce).mean()
 
 
@@ -179,7 +212,7 @@ class WeatherLossV4(nn.Module):
     def forward(self, preds: Dict[str, Dict[str, torch.Tensor]],
                 targets: Dict[str, Dict[str, torch.Tensor]]) -> torch.Tensor:
         device = preds[str(self.horizons[0])]["rain_probability"].device
-        total_loss = torch.tensor(0.0, device=device, requires_grad=True)
+        total_loss = torch.zeros(1, device=device, requires_grad=True)
         weight_sum = 0.0
 
         for h in self.horizons:
@@ -188,7 +221,7 @@ class WeatherLossV4(nn.Module):
             p = preds[hk]
             t = targets[hk]
 
-            loss_h = torch.tensor(0.0, device=device, requires_grad=True)
+            loss_h = torch.zeros(1, device=device, requires_grad=True)
             if "rain_probability" in t:
                 loss_h = loss_h + 1.5 * self.focal_rain(p["rain_probability"], t["rain_probability"])
             if "precip_mm" in t:
@@ -1116,6 +1149,8 @@ def train_v5_fold(
 
     scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
     accum_steps = 2  # effective batch = 1024
+    use_amp = device == "cuda"
+    scaler = torch.amp.GradScaler("cuda", enabled=use_amp)
 
     best_val = float("inf")
     best_state = None
@@ -1129,15 +1164,18 @@ def train_v5_fold(
         t_losses = []
         for step, (xb, yb) in enumerate(train_loader):
             xb, yb = xb.to(device), yb.to(device)
-            preds = model(xb)
-            unflat_yb = unflatten(yb)
-            loss = torch.stack([
-                criterion.forward(preds, unflat_yb)
-            ]).mean() / accum_steps
-            loss.backward()
+            with torch.amp.autocast("cuda", enabled=use_amp):
+                preds = model(xb)
+                unflat_yb = unflatten(yb)
+                loss = torch.stack([
+                    criterion.forward(preds, unflat_yb)
+                ]).mean() / accum_steps
+            scaler.scale(loss).backward()
             if (step + 1) % accum_steps == 0:
+                scaler.unscale_(optimizer)
                 nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-                optimizer.step()
+                scaler.step(optimizer)
+                scaler.update()
                 optimizer.zero_grad()
             t_losses.append(loss.item() * accum_steps)
 
@@ -1147,16 +1185,17 @@ def train_v5_fold(
         with torch.no_grad():
             for xb, yb in val_loader:
                 xb, yb = xb.to(device), yb.to(device)
-                preds = model(xb)
-                unflat_yb = unflatten(yb)
-                loss = torch.stack([
-                    criterion.forward(preds, unflat_yb)
-                ]).mean()
+                with torch.amp.autocast("cuda", enabled=use_amp):
+                    preds = model(xb)
+                    unflat_yb = unflatten(yb)
+                    loss = torch.stack([
+                        criterion.forward(preds, unflat_yb)
+                    ]).mean()
                 v_losses.append(loss.item())
 
         train_loss = float(np.mean(t_losses))
         val_loss = float(np.mean(v_losses))
-        scheduler.step()
+        scheduler.step(epoch)
 
         if val_loss < best_val:
             best_val = val_loss
@@ -1171,6 +1210,7 @@ def train_v5_fold(
             logger.info(
                 f"    Epoch {epoch:3d}/{max_epochs}  train={train_loss:.4f}  "
                 f"val={val_loss:.4f}  lr={lr_now:.6f}  [{elapsed:.0f}s]"
+                f"{'  [AMP]' if use_amp else ''}"
             )
 
         if patience >= 12:
